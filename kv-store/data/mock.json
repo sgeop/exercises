@@ -1,0 +1,7 @@
+{
+  "field1": 456,
+  "field2": { "a": "hello", "b": 22.2 },
+  "field3": ["a", "b", "c", "d"],
+  "field4": "yoyoyo"
+}
+
