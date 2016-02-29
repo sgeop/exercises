@@ -1,3 +1,5 @@
+module AddressCache where
+
 import qualified Data.Bimap as B
 import Data.DateTime
 import Control.Concurrent.STM
@@ -28,13 +30,14 @@ remove ac v = do
   return True
   where removeSTM a b = readTVar a >>= \m -> writeTVar a $ B.deleteR v m
 
+
 peek :: AddressCache -> IO (Maybe InetAddress)
 peek ac = do
   e <- isEmpty ac 
   if e 
     then return Nothing
     else do m <- readTVarIO ac
-            let (dt, i) = B.findMin m
+            let (dt, i) = B.findMax m
             return $ Just i
 
 
@@ -46,10 +49,9 @@ removeSTM' ac = do
   m <- readTVar ac
   if B.null m
     then return Nothing
-    else do
-      let ((a, i), m') = B.deleteFindMin m
-      writeTVar ac m'
-      return $ Just i
+    else do let ((a, i), m') = B.deleteFindMax m
+            writeTVar ac m'
+            return $ Just i
 
 
 take :: AddressCache -> IO InetAddress
@@ -60,10 +62,9 @@ takeSTM ac = do
   m <- readTVar ac
   if B.null m
     then retry
-    else do
-      let ((a, i), m') = B.deleteFindMin m
-      writeTVar ac m'
-      return i
+    else do let ((a, i), m') = B.deleteFindMax m
+            writeTVar ac m'
+            return i
 
 
 size :: AddressCache -> IO Int
@@ -80,6 +81,7 @@ removeBefore ac dt expSecs = do
   writeTVar ac (B.filter isExp m)
   where isExp t _ = toSeconds dt - toSeconds t < expSecs
 
+
 cleanup :: AddressCache -> Integer -> IO ()
 cleanup ac expSecs = 
   forever $ do
@@ -93,14 +95,3 @@ new expSecs = do
    ac <- newTVarIO B.empty
    forkIO $ cleanup ac expSecs
    return ac
-
-main = do
-  ac <- new 10
-  forkIO $ forever $ do
-    i <- getLine
-    offer ac (read i :: Integer)
-    return ()
-  forever $ do
-    threadDelay (10^6 * 2)
-    a <- readTVarIO ac
-    print a
